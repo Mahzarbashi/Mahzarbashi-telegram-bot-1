@@ -8,7 +8,7 @@ import json
 
 # ==================== CONFIGURATION - TOKENS ====================
 # توکن ربات شما - لطفا بعداً این توکن را عوض کنید!
-TELEGRAM_BOT_TOKEN = "6932785959:AAGR9Z_gg7RUwuGygcx761PG51725jT52TM"
+TELEGRAM_BOT_TOKEN = "932785959:AAETBE4j1mFIJ4rT5oN28j0zPQkxQHQVUM0"
 # کلید API OpenAI خود را اینجا قرار دهید
 OPENAI_API_KEY = "YOUR_OPENAI_API_KEY"
 WEBSITE_URL = "https://mahzarbashi.ir"
