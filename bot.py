@@ -3,14 +3,11 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 from openai import OpenAI
 import os
 from gtts import gTTS
-import requests
-import json
 
 # ==================== CONFIGURATION - TOKENS ====================
-# توکن ربات شما - لطفا بعداً این توکن را عوض کنید!
-TELEGRAM_BOT_TOKEN = "932785959:AAETBE4j1mFIJ4rT5oN28j0zPQkxQHQVUM0"
-# کلید API OpenAI خود را اینجا قرار دهید
-OPENAI_API_KEY = "YOUR_OPENAI_API_KEY"
+# توکن ربات شما - از Environment Variables می‌خوانیم
+TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 WEBSITE_URL = "https://mahzarbashi.ir"
 
 # Initialize OpenAI client
@@ -91,4 +88,32 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if audio_filename:
         try:
-            with open(audio_filename, 'rb
+            with open(audio_filename, 'rb') as audio_file:
+                await update.message.reply_voice(voice=audio_file, caption="پاسخ صوتی برای شما 🎧")
+        except Exception as e:
+            print(f"Error sending audio: {e}")
+            await update.message.reply_text("متأسفانه در تولید فایل صوتی مشکل پیش آمد.")
+        finally:
+            # Clean up: delete the temporary audio file
+            if os.path.exists(audio_filename):
+                os.remove(audio_filename)
+    else:
+        await update.message.reply_text("متأسفانه در تولید فایل صوتی مشکل پیش آمد.")
+
+# ==================== MAIN FUNCTION ====================
+def main():
+    """Start the bot"""
+    print("Starting Mahzar Assistant Bot...")
+    # Create the Application
+    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+
+    # Add handlers
+    application.add_handler(CommandHandler('start', start_command))
+    application.add_handler(CommandHandler('help', help_command))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+    # Start polling
+    application.run_polling()
+
+if __name__ == '__main__':
+    main()
