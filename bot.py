@@ -4,17 +4,14 @@ from openai import OpenAI
 import os
 from gtts import gTTS
 
-# ==================== CONFIGURATION - TOKENS ====================
+# ==================== CONFIGURATION ====================
 TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 WEBSITE_URL = "https://mahzarbashi.ir"
 
 # بررسی وجود توکن‌ها
-if not TELEGRAM_BOT_TOKEN:
-    raise ValueError("❌ خطا: TELEGRAM_BOT_TOKEN یافت نشد.")
-
-if not OPENAI_API_KEY:
-    raise ValueError("❌ خطا: OPENAI_API_KEY یافت نشد.")
+if not TELEGRAM_BOT_TOKEN or not OPENAI_API_KEY:
+    raise ValueError("لطفاً توکن‌ها را در Environment Variables تنظیم کنید")
 
 print("✅ توکن‌ها با موفقیت بارگذاری شدند")
 
@@ -23,7 +20,6 @@ openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 # ==================== AI ANSWER FUNCTION ====================
 def get_ai_response(user_message):
-    """دریافت پاسخ از OpenAI"""
     try:
         system_prompt = f"""شما یک دستیار هوشمند وبسایت "محر بashi" هستید."""
         
@@ -41,7 +37,6 @@ def get_ai_response(user_message):
 
 # ==================== TEXT TO SPEECH FUNCTION ====================
 def generate_audio_from_text(text, filename="response.mp3"):
-    """تبدیل متن به صوت"""
     try:
         tts = gTTS(text=text, lang='fa', slow=False)
         tts.save(filename)
@@ -63,7 +58,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.chat.send_action(action="typing")
     ai_response_text = get_ai_response(user_message)
     
-    await update.message.reply_text(ai_response_text)
+    text_with_signoff = ai_response_text + f"\n\n---\n🤵 برای مشاوره تخصصی: {WEBSITE_URL}"
+    await update.message.reply_text(text_with_signoff)
     
     await update.message.chat.send_action(action="record_voice")
     audio_filename = generate_audio_from_text(ai_response_text)
@@ -80,14 +76,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ==================== MAIN FUNCTION ====================
 def main():
-    print("Starting bot...")
+    print("Starting Mahzar Assistant Bot...")
+    
+    # ایجاد برنامه با استفاده از Builder pattern
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
+    # اضافه کردن handlerها
     application.add_handler(CommandHandler('start', start_command))
     application.add_handler(CommandHandler('help', help_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     print("✅ ربات شروع به کار کرد")
+    
+    # شروع轮询
     application.run_polling()
 
 if __name__ == '__main__':
