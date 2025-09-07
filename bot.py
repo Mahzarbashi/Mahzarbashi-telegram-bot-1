@@ -1,25 +1,18 @@
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 from openai import OpenAI
 import os
 from gtts import gTTS
 import sys
 
 # ==================== CONFIGURATION ====================
-# خواندن Environment Variables با نام صحیح
 TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 WEBSITE_URL = "https://mahzarbashi.ir"
 
-# بررسی وجود توکن‌ها با پیغام واضح
-if not TELEGRAM_BOT_TOKEN:
-    print("ERROR: TELEGRAM_BOT_TOKEN environment variable is not set")
-    print("لطفاً در Render، متغیر TELEGRAM_BOT_TOKEN را تنظیم کنید")
-    sys.exit(1)
-
-if not OPENAI_API_KEY:
-    print("ERROR: OPENAI_API_KEY environment variable is not set")
-    print("لطفاً در Render، متغیر OPENAI_API_KEY را تنظیم کنید")
+# بررسی وجود توکن‌ها
+if not TELEGRAM_BOT_TOKEN or not OPENAI_API_KEY:
+    print("لطفاً توکن‌ها را در Environment Variables تنظیم کنید")
     sys.exit(1)
 
 print("✅ توکن‌ها با موفقیت بارگذاری شدند")
@@ -55,34 +48,38 @@ def generate_audio_from_text(text, filename="response.mp3"):
         return None
 
 # ==================== TELEGRAM BOT HANDLERS ====================
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def start_command(update: Update, context: CallbackContext):
     welcome_text = (
         "سلام! 👋 به دستیار هوشمند محر بashi خوش آمدید.\n\n"
         "من اینجا هستم تا به سوالات اولیه حقوقی شما پاسخ دهم.\n\n"
         f"برای دریافت مشاوره تخصصی: {WEBSITE_URL}"
     )
-    await update.message.reply_text(welcome_text)
+    update.message.reply_text(welcome_text)
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def help_command(update: Update, context: CallbackContext):
     help_text = "شما فقط کافیه سوال حقوقی خودتون رو اینجا بنویسید. من سعی می‌کنم بهتون کمک کنم."
-    await update.message.reply_text(help_text)
+    update.message.reply_text(help_text)
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def handle_message(update: Update, context: CallbackContext):
     user_message = update.message.text
     
-    await update.message.chat.send_action(action="typing")
+    # شبیه‌سازی عمل تایپ کردن
+    context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+    
     ai_response_text = get_ai_response(user_message)
     
     text_with_signoff = ai_response_text + f"\n\n---\nبرای مشاوره تخصصی: {WEBSITE_URL}"
-    await update.message.reply_text(text_with_signoff)
+    update.message.reply_text(text_with_signoff)
     
-    await update.message.chat.send_action(action="record_voice")
+    # شبیه‌سازی عمل ضبط صدا
+    context.bot.send_chat_action(chat_id=update.effective_chat.id, action="record_voice")
+    
     audio_filename = generate_audio_from_text(ai_response_text)
     
     if audio_filename:
         try:
             with open(audio_filename, 'rb') as audio_file:
-                await update.message.reply_voice(voice=audio_file, caption="پاسخ صوتی")
+                update.message.reply_voice(voice=audio_file, caption="پاسخ صوتی")
         except Exception as e:
             print(f"Error sending audio: {e}")
         finally:
@@ -93,14 +90,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     print("Starting Mahzar Assistant Bot...")
     
-    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-
-    application.add_handler(CommandHandler('start', start_command))
-    application.add_handler(CommandHandler('help', help_command))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    # استفاده از Updater به جای Application (سازگارتر با نسخه‌های مختلف)
+    updater = Updater(TELEGRAM_BOT_TOKEN, use_context=True)
+    
+    # گرفتن dispatcher برای ثبت handlerها
+    dp = updater.dispatcher
+    
+    # اضافه کردن handlerها
+    dp.add_handler(CommandHandler('start', start_command))
+    dp.add_handler(CommandHandler('help', help_command))
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
 
     print("✅ ربات شروع به کار کرد")
-    application.run_polling()
+    
+    # شروع轮询
+    updater.start_polling()
+    updater.idle()
 
 if __name__ == '__main__':
     main()
