@@ -3,15 +3,24 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 from openai import OpenAI
 import os
 from gtts import gTTS
+import sys
 
 # ==================== CONFIGURATION ====================
+# خواندن Environment Variables با نام صحیح
 TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 WEBSITE_URL = "https://mahzarbashi.ir"
 
-# بررسی وجود توکن‌ها
-if not TELEGRAM_BOT_TOKEN or not OPENAI_API_KEY:
-    raise ValueError("لطفاً توکن‌ها را در Environment Variables تنظیم کنید")
+# بررسی وجود توکن‌ها با پیغام واضح
+if not TELEGRAM_BOT_TOKEN:
+    print("ERROR: TELEGRAM_BOT_TOKEN environment variable is not set")
+    print("لطفاً در Render، متغیر TELEGRAM_BOT_TOKEN را تنظیم کنید")
+    sys.exit(1)
+
+if not OPENAI_API_KEY:
+    print("ERROR: OPENAI_API_KEY environment variable is not set")
+    print("لطفاً در Render، متغیر OPENAI_API_KEY را تنظیم کنید")
+    sys.exit(1)
 
 print("✅ توکن‌ها با موفقیت بارگذاری شدند")
 
@@ -21,7 +30,7 @@ openai_client = OpenAI(api_key=OPENAI_API_KEY)
 # ==================== AI ANSWER FUNCTION ====================
 def get_ai_response(user_message):
     try:
-        system_prompt = f"""شما یک دستیار هوشمند وبسایت "محر بashi" هستید."""
+        system_prompt = f"""شما یک دستیار هوشمند وبسایت "محر بashi" هستید. به سوالات حقوقی پاسخ می‌دهید."""
         
         completion = openai_client.chat.completions.create(
             model="gpt-3.5-turbo",
@@ -47,10 +56,16 @@ def generate_audio_from_text(text, filename="response.mp3"):
 
 # ==================== TELEGRAM BOT HANDLERS ====================
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("سلام! به ربات خوش آمدید.")
+    welcome_text = (
+        "سلام! 👋 به دستیار هوشمند محر بashi خوش آمدید.\n\n"
+        "من اینجا هستم تا به سوالات اولیه حقوقی شما پاسخ دهم.\n\n"
+        f"برای دریافت مشاوره تخصصی: {WEBSITE_URL}"
+    )
+    await update.message.reply_text(welcome_text)
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("راهنما: سوالات خود را بپرسید.")
+    help_text = "شما فقط کافیه سوال حقوقی خودتون رو اینجا بنویسید. من سعی می‌کنم بهتون کمک کنم."
+    await update.message.reply_text(help_text)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
@@ -58,7 +73,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.chat.send_action(action="typing")
     ai_response_text = get_ai_response(user_message)
     
-    text_with_signoff = ai_response_text + f"\n\n---\n🤵 برای مشاوره تخصصی: {WEBSITE_URL}"
+    text_with_signoff = ai_response_text + f"\n\n---\nبرای مشاوره تخصصی: {WEBSITE_URL}"
     await update.message.reply_text(text_with_signoff)
     
     await update.message.chat.send_action(action="record_voice")
@@ -78,17 +93,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     print("Starting Mahzar Assistant Bot...")
     
-    # ایجاد برنامه با استفاده از Builder pattern
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
-    # اضافه کردن handlerها
     application.add_handler(CommandHandler('start', start_command))
     application.add_handler(CommandHandler('help', help_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     print("✅ ربات شروع به کار کرد")
-    
-    # شروع轮询
     application.run_polling()
 
 if __name__ == '__main__':
