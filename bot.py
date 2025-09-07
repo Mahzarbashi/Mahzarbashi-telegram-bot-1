@@ -1,5 +1,5 @@
 from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from openai import OpenAI
 import os
 from gtts import gTTS
@@ -48,38 +48,34 @@ def generate_audio_from_text(text, filename="response.mp3"):
         return None
 
 # ==================== TELEGRAM BOT HANDLERS ====================
-def start_command(update: Update, context: CallbackContext):
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_text = (
         "سلام! 👋 به دستیار هوشمند محر بashi خوش آمدید.\n\n"
         "من اینجا هستم تا به سوالات اولیه حقوقی شما پاسخ دهم.\n\n"
         f"برای دریافت مشاوره تخصصی: {WEBSITE_URL}"
     )
-    update.message.reply_text(welcome_text)
+    await update.message.reply_text(welcome_text)
 
-def help_command(update: Update, context: CallbackContext):
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = "شما فقط کافیه سوال حقوقی خودتون رو اینجا بنویسید. من سعی می‌کنم بهتون کمک کنم."
-    update.message.reply_text(help_text)
+    await update.message.reply_text(help_text)
 
-def handle_message(update: Update, context: CallbackContext):
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     
-    # شبیه‌سازی عمل تایپ کردن
-    context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-    
+    await update.message.chat.send_action(action="typing")
     ai_response_text = get_ai_response(user_message)
     
     text_with_signoff = ai_response_text + f"\n\n---\nبرای مشاوره تخصصی: {WEBSITE_URL}"
-    update.message.reply_text(text_with_signoff)
+    await update.message.reply_text(text_with_signoff)
     
-    # شبیه‌سازی عمل ضبط صدا
-    context.bot.send_chat_action(chat_id=update.effective_chat.id, action="record_voice")
-    
+    await update.message.chat.send_action(action="record_voice")
     audio_filename = generate_audio_from_text(ai_response_text)
     
     if audio_filename:
         try:
             with open(audio_filename, 'rb') as audio_file:
-                update.message.reply_voice(voice=audio_file, caption="پاسخ صوتی")
+                await update.message.reply_voice(voice=audio_file, caption="پاسخ صوتی")
         except Exception as e:
             print(f"Error sending audio: {e}")
         finally:
@@ -90,22 +86,14 @@ def handle_message(update: Update, context: CallbackContext):
 def main():
     print("Starting Mahzar Assistant Bot...")
     
-    # استفاده از Updater به جای Application (سازگارتر با نسخه‌های مختلف)
-    updater = Updater(TELEGRAM_BOT_TOKEN, use_context=True)
-    
-    # گرفتن dispatcher برای ثبت handlerها
-    dp = updater.dispatcher
-    
-    # اضافه کردن handlerها
-    dp.add_handler(CommandHandler('start', start_command))
-    dp.add_handler(CommandHandler('help', help_command))
-    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
+    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+
+    application.add_handler(CommandHandler('start', start_command))
+    application.add_handler(CommandHandler('help', help_command))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     print("✅ ربات شروع به کار کرد")
-    
-    # شروع轮询
-    updater.start_polling()
-    updater.idle()
+    application.run_polling()
 
 if __name__ == '__main__':
     main()
