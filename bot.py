@@ -24,12 +24,11 @@ def webhook():
             reply = "سلام 👋 خوش اومدی به ربات محضرباشی ✅"
             bot.sendMessage(chat_id=chat_id, text=reply)
         else:
-            # بررسی پاسخ
             reply = responses.get(text)
             if reply:
                 # ارسال متن
                 bot.sendMessage(chat_id=chat_id, text=reply)
-                # تبدیل به صوت و ارسال
+                # تبدیل متن به صوت و ارسال
                 tts = gTTS(reply, lang='fa')
                 audio_fp = io.BytesIO()
                 tts.write_to_fp(audio_fp)
