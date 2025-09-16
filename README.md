@@ -1,10 +1,1 @@
-# Mahzarbashi Telegram Bot
-
-ربات رسمی محضرباشی در تلگرام  
-ساخته شده با Python + Flask + python-telegram-bot + gTTS  
-
-## اجرای محلی
-```bash
-pip install -r requirements.txt
-export BOT_TOKEN="توکن ربات"
-python bot.py
+export BOT_TOKEN="932785959:AAETBE4j1mFIJ4rT5oN28j0zPQkxQHQVUM0"
